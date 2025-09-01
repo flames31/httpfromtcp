@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -14,24 +15,38 @@ func main() {
 	}
 	defer file.Close()
 
-	line := ""
-	for {
-		data := make([]byte, 8)
-		n, err := file.Read(data)
-		if err != nil {
-			break
-		}
-
-		data = data[:n]
-		if i := bytes.IndexByte(data, '\n'); i != -1 {
-			line += string(data[:i])
-			data = data[i+1:]
-			fmt.Printf("read: %s\n", line)
-			line = ""
-		}
-		line += string(data)
-	}
-	if len(line) != 0 {
+	ch := getLinesChannel(file)
+	for line := range ch {
 		fmt.Printf("read: %s\n", line)
 	}
+
+}
+
+func getLinesChannel(f io.ReadCloser) <-chan string {
+	lineCh := make(chan (string))
+	go func() {
+		line := ""
+		for {
+			data := make([]byte, 8)
+			n, err := f.Read(data)
+			if err != nil {
+				break
+			}
+
+			data = data[:n]
+			if i := bytes.IndexByte(data, '\n'); i != -1 {
+				line += string(data[:i])
+				data = data[i+1:]
+				lineCh <- line
+				line = ""
+			}
+			line += string(data)
+		}
+		if len(line) != 0 {
+			lineCh <- line
+		}
+
+		close(lineCh)
+	}()
+	return lineCh
 }
