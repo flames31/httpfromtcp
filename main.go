@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 )
@@ -11,13 +12,26 @@ func main() {
 		fmt.Printf("error opening file : %v", err)
 		os.Exit(1)
 	}
+	defer file.Close()
 
-	bytes := make([]byte, 8)
+	line := ""
 	for {
-		n, err := file.Read(bytes)
+		data := make([]byte, 8)
+		n, err := file.Read(data)
 		if err != nil {
 			break
 		}
-		fmt.Printf("read: %s\n", string(bytes[:n]))
+
+		data = data[:n]
+		if i := bytes.IndexByte(data, '\n'); i != -1 {
+			line += string(data[:i])
+			data = data[i+1:]
+			fmt.Printf("read: %s\n", line)
+			line = ""
+		}
+		line += string(data)
+	}
+	if len(line) != 0 {
+		fmt.Printf("read: %s\n", line)
 	}
 }
