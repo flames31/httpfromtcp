@@ -1,11 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"os"
+
+	"github.com/flames31/httpfromtcp/internal/request"
 )
 
 func main() {
@@ -23,39 +23,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		ch := getLinesChannel(conn)
-		for line := range ch {
-			fmt.Printf("read: %s\n", line)
-		}
+		request, err := request.RequestFromReader(conn)
+		fmt.Printf("Request line:\n- Method: %v\n- Target: %v\n- Version: %v\n", request.RequestLine.Method, request.RequestLine.RequestTarget, request.RequestLine.HttpVersion)
 		fmt.Println("Connection has been closed!")
 	}
-}
-
-func getLinesChannel(f io.ReadCloser) <-chan string {
-	lineCh := make(chan (string))
-	go func() {
-		defer close(lineCh)
-		defer f.Close()
-		line := ""
-		for {
-			data := make([]byte, 8)
-			n, err := f.Read(data)
-			if err != nil {
-				break
-			}
-
-			data = data[:n]
-			if i := bytes.IndexByte(data, '\n'); i != -1 {
-				line += string(data[:i])
-				data = data[i+1:]
-				lineCh <- line
-				line = ""
-			}
-			line += string(data)
-		}
-		if len(line) != 0 {
-			lineCh <- line
-		}
-	}()
-	return lineCh
 }
