@@ -2,18 +2,29 @@ package headers
 
 import (
 	"bytes"
-	"errors"
+	"fmt"
+	"strings"
 )
 
-type Headers map[string]string
+type Headers struct {
+	headers map[string]string
+}
 
 var crlf = []byte("\r\n")
 
-func NewHeaders() Headers {
-	return map[string]string{}
+var (
+	ErrInvalidHeaderFieldName = fmt.Errorf("invalid header field name")
+	ErrInvalidHeaderFormat    = fmt.Errorf("invalid header format")
+	ErrInvalidHeaderName      = fmt.Errorf("invalid header character in name")
+)
+
+func NewHeaders() *Headers {
+	return &Headers{
+		headers: map[string]string{},
+	}
 }
 
-func (h Headers) Parse(data []byte) (int, bool, error) {
+func (h *Headers) Parse(data []byte) (int, bool, error) {
 	done := false
 	read := 0
 	for {
@@ -32,24 +43,59 @@ func (h Headers) Parse(data []byte) (int, bool, error) {
 			return 0, false, err
 		}
 
-		h[name] = val
+		h.Set(name, val)
 		read += n + len(crlf)
 	}
 	return read, done, nil
 }
 
+func (h *Headers) Get(name string) string {
+	return h.headers[strings.ToLower(name)]
+}
+
+func (h *Headers) Set(name, value string) {
+	name = strings.ToLower(name)
+	if val, ok := h.headers[name]; ok {
+		h.headers[name] = fmt.Sprintf("%s,%s", val, value)
+	} else {
+		h.headers[name] = value
+	}
+}
 func parseHeaderLine(data []byte) (string, string, error) {
 	parts := bytes.SplitN(data, []byte(":"), 2)
 	if len(parts) != 2 {
-		return "", "", errors.New("invalid header format")
+		return "", "", ErrInvalidHeaderFormat
 	}
 
 	name := parts[0]
 	value := bytes.TrimSpace(parts[1])
 
+	if !headerNameValid(name) {
+		return "", "", ErrInvalidHeaderName
+	}
 	if bytes.HasSuffix(name, []byte(" ")) {
-		return "", "", errors.New("invalid header field name")
+		return "", "", ErrInvalidHeaderFieldName
 	}
 
 	return string(name), string(value), nil
+}
+
+func headerNameValid(name []byte) bool {
+	for _, c := range name {
+		found := false
+		switch c {
+		case '!', '#', '$', '%', '&', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+			found = true
+		}
+
+		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') && (c >= '0' || c <= '9') {
+			found = true
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }

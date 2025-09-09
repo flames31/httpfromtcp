@@ -53,7 +53,7 @@ outer:
 				break outer
 			}
 
-			r.RequestLine = rl
+			r.RequestLine = *rl
 			r.ParserState = StateDone
 			read += n
 		case StateDone:
@@ -86,24 +86,24 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	return request, nil
 }
 
-func parseRequestLine(data []byte) (RequestLine, int, error) {
+func parseRequestLine(data []byte) (*RequestLine, int, error) {
 	idx := bytes.Index(data, []byte(SEPERATOR))
 	if idx == -1 {
-		return RequestLine{}, 0, nil
+		return nil, 0, nil
 	}
 	startLine := data[:idx]
 	n := idx + len(SEPERATOR)
 
 	parts := bytes.Split(startLine, []byte(" "))
 	if len(parts) != 3 {
-		return RequestLine{}, 0, ErrMalformedReqLine
+		return nil, 0, ErrMalformedReqLine
 	}
 
 	httpParts := bytes.Split(parts[2], []byte("/"))
 	if len(httpParts) != 2 || string(httpParts[0]) != "HTTP" || string(httpParts[1]) != "1.1" {
-		return RequestLine{}, 0, ErrMalformedReqLine
+		return nil, 0, ErrMalformedReqLine
 	}
-	return RequestLine{
+	return &RequestLine{
 		Method:        string(parts[0]),
 		HttpVersion:   string(httpParts[1]),
 		RequestTarget: string(parts[1]),
