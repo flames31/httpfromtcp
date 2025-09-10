@@ -25,6 +25,9 @@ func main() {
 
 		request, err := request.RequestFromReader(conn)
 		fmt.Printf("Request line:\n- Method: %v\n- Target: %v\n- Version: %v\n", request.RequestLine.Method, request.RequestLine.RequestTarget, request.RequestLine.HttpVersion)
-		fmt.Println("Connection has been closed!")
+		fmt.Printf("Headers:\n")
+		request.Headers.ForEach(func(k, v string) {
+			fmt.Printf("- %s: %s\n", k, v)
+		})
 	}
 }
