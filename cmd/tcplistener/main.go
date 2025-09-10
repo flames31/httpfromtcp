@@ -24,10 +24,15 @@ func main() {
 		}
 
 		request, err := request.RequestFromReader(conn)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		fmt.Printf("Request line:\n- Method: %v\n- Target: %v\n- Version: %v\n", request.RequestLine.Method, request.RequestLine.RequestTarget, request.RequestLine.HttpVersion)
 		fmt.Printf("Headers:\n")
 		request.Headers.ForEach(func(k, v string) {
 			fmt.Printf("- %s: %s\n", k, v)
 		})
+		fmt.Printf("Body:\n%s\n", string(request.Body))
 	}
 }

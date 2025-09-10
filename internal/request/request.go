@@ -53,7 +53,8 @@ func (r *Request) parse(data []byte) (int, error) {
 outer:
 	for {
 		currentData := data[read:]
-
+		fmt.Println(string(currentData), len(currentData), r.ParserState)
+		fmt.Println("----------------------------------")
 		switch r.ParserState {
 		case StateInit:
 			rl, n, err := parseRequestLine(currentData)
@@ -75,6 +76,7 @@ outer:
 				return 0, err
 			}
 
+			read += n
 			if done {
 				read += len(SEPERATOR)
 				r.ParserState = StateBody
@@ -84,7 +86,6 @@ outer:
 			if n == 0 {
 				break outer
 			}
-			read += n
 
 		case StateBody:
 			contentLength := r.Headers.Get("content-length")
