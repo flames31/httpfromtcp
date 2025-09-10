@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+
+	"github.com/flames31/httpfromtcp/internal/headers"
 )
 
 type parserState string
 
 const (
-	StateInit parserState = "init"
-	StateDone parserState = "done"
+	StateInit    parserState = "init"
+	StateHeaders parserState = "headers"
+	StateDone    parserState = "done"
 )
 
 const SEPERATOR = "\r\n"
@@ -19,6 +22,7 @@ var ErrMalformedReqLine = fmt.Errorf("invalid request line")
 
 type Request struct {
 	RequestLine RequestLine
+	Headers     *headers.Headers
 	ParserState parserState
 }
 
@@ -31,6 +35,7 @@ type RequestLine struct {
 func newRequest() *Request {
 	return &Request{
 		ParserState: StateInit,
+		Headers:     headers.NewHeaders(),
 	}
 }
 
@@ -42,9 +47,10 @@ func (r *Request) parse(data []byte) (int, error) {
 	read := 0
 outer:
 	for {
+		currentData := data[read:]
 		switch r.ParserState {
 		case StateInit:
-			rl, n, err := parseRequestLine(data[read:])
+			rl, n, err := parseRequestLine(currentData)
 			if err != nil {
 				return 0, err
 			}
@@ -54,7 +60,22 @@ outer:
 			}
 
 			r.RequestLine = *rl
-			r.ParserState = StateDone
+			r.ParserState = StateHeaders
+			read += n
+		case StateHeaders:
+			n, done, err := r.Headers.Parse(currentData)
+			if err != nil {
+				return 0, err
+			}
+
+			if done {
+				r.ParserState = StateDone
+			}
+
+			if n == 0 {
+				break outer
+			}
+
 			read += n
 		case StateDone:
 			break outer
