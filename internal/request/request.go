@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/flames31/httpfromtcp/internal/headers"
 )
@@ -13,16 +14,19 @@ type parserState string
 const (
 	StateInit    parserState = "init"
 	StateHeaders parserState = "headers"
+	StateBody    parserState = "body"
 	StateDone    parserState = "done"
 )
 
 const SEPERATOR = "\r\n"
 
 var ErrMalformedReqLine = fmt.Errorf("invalid request line")
+var ErrRequestBodyLenMismtach = fmt.Errorf("invalid body length")
 
 type Request struct {
 	RequestLine RequestLine
 	Headers     *headers.Headers
+	Body        []byte
 	ParserState parserState
 }
 
@@ -36,6 +40,7 @@ func newRequest() *Request {
 	return &Request{
 		ParserState: StateInit,
 		Headers:     headers.NewHeaders(),
+		Body:        make([]byte, 0, 1024),
 	}
 }
 
@@ -48,6 +53,7 @@ func (r *Request) parse(data []byte) (int, error) {
 outer:
 	for {
 		currentData := data[read:]
+
 		switch r.ParserState {
 		case StateInit:
 			rl, n, err := parseRequestLine(currentData)
@@ -62,6 +68,7 @@ outer:
 			r.RequestLine = *rl
 			r.ParserState = StateHeaders
 			read += n
+
 		case StateHeaders:
 			n, done, err := r.Headers.Parse(currentData)
 			if err != nil {
@@ -69,14 +76,40 @@ outer:
 			}
 
 			if done {
-				r.ParserState = StateDone
+				read += len(SEPERATOR)
+				r.ParserState = StateBody
+				continue
 			}
 
 			if n == 0 {
 				break outer
 			}
-
 			read += n
+
+		case StateBody:
+			contentLength := r.Headers.Get("content-length")
+			if contentLength == "" {
+				r.ParserState = StateDone
+				break outer
+			}
+
+			length, err := strconv.Atoi(contentLength)
+			if err != nil {
+				return 0, err
+			}
+
+			r.Body = append(r.Body, currentData...)
+			if len(r.Body) > length {
+				return 0, ErrRequestBodyLenMismtach
+			}
+
+			if len(r.Body) == length {
+				r.ParserState = StateDone
+			}
+
+			read += len(currentData)
+			break outer
+
 		case StateDone:
 			break outer
 		}
