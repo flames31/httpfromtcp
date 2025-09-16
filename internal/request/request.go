@@ -53,8 +53,6 @@ func (r *Request) parse(data []byte) (int, error) {
 outer:
 	for {
 		currentData := data[read:]
-		fmt.Println(string(currentData), len(currentData), r.ParserState)
-		fmt.Println("----------------------------------")
 		switch r.ParserState {
 		case StateInit:
 			rl, n, err := parseRequestLine(currentData)
