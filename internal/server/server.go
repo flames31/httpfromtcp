@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/flames31/httpfromtcp/internal/request"
+	"github.com/flames31/httpfromtcp/internal/response"
 )
 
 type Server struct {
@@ -58,6 +59,7 @@ func (s *Server) handle(conn net.Conn) {
 		return
 	}
 
-	conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello World!\n"))
+	response.WriteStatusLine(conn, 200)
+	response.WriteHeaders(conn, response.GetDefaultHeaders(0))
 	conn.Close()
 }
