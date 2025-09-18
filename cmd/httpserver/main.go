@@ -26,6 +26,8 @@ func main() {
 				StatusCode: 500,
 				Msg:        "Woopsie, my bad\n",
 			}
+		default:
+			w.Write([]byte("All good, frfr\n"))
 		}
 
 		return nil
