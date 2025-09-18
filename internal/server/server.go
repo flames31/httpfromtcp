@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"strconv"
@@ -13,9 +14,10 @@ import (
 type Server struct {
 	listner  net.Listener
 	isClosed atomic.Bool
+	handler  Handler
 }
 
-func Serve(port int) (*Server, error) {
+func Serve(port int, handler Handler) (*Server, error) {
 	portStr := strconv.Itoa(port)
 	l, err := net.Listen("tcp", ":"+portStr)
 	if err != nil {
@@ -26,6 +28,7 @@ func Serve(port int) (*Server, error) {
 	srv := &Server{
 		listner:  l,
 		isClosed: atomic.Bool{},
+		handler:  handler,
 	}
 
 	go srv.listen()
@@ -53,13 +56,19 @@ func (s *Server) handle(conn net.Conn) {
 	if s.isClosed.Load() {
 		return
 	}
-	_, err := request.RequestFromReader(conn)
+	req, err := request.RequestFromReader(conn)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	response.WriteStatusLine(conn, 200)
-	response.WriteHeaders(conn, response.GetDefaultHeaders(0))
+	buf := bytes.Buffer{}
+	hErr := s.handler(&buf, req)
+	hErr.Write(&buf)
+
+	defHeaders := response.GetDefaultHeaders(buf.Len())
+	response.WriteStatusLine(conn, response.StatusCode(hErr.StatusCode))
+	response.WriteHeaders(conn, defHeaders)
+	conn.Write(buf.Bytes())
 	conn.Close()
 }
