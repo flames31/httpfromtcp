@@ -7,15 +7,13 @@ import (
 	"github.com/flames31/httpfromtcp/internal/headers"
 )
 
-type StatusCode int
-
 const (
-	StatusOK             StatusCode = 200
-	StatusBadRequest     StatusCode = 400
-	StatusInternalSrvErr StatusCode = 500
+	StatusOK             = 200
+	StatusBadRequest     = 400
+	StatusInternalSrvErr = 500
 )
 
-func WriteStatusLine(w io.Writer, statusCode StatusCode) error {
+func WriteStatusLine(w io.Writer, statusCode int) error {
 	switch statusCode {
 	case StatusOK:
 		w.Write([]byte("HTTP/1.1 200 OK\r\n"))

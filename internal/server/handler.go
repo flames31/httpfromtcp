@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/flames31/httpfromtcp/internal/request"
+	"github.com/flames31/httpfromtcp/internal/response"
 )
 
 type Handler func(w io.Writer, req *request.Request) *HandlerError
@@ -15,5 +16,6 @@ type HandlerError struct {
 }
 
 func (h *HandlerError) Write(w io.Writer) {
+	response.WriteStatusLine(w, h.StatusCode)
 	w.Write([]byte(fmt.Sprintf("%s", h.Msg)))
 }

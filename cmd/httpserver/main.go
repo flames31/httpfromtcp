@@ -15,22 +15,20 @@ const port = 42069
 
 func main() {
 	server, err := server.Serve(port, func(w io.Writer, req *request.Request) *server.HandlerError {
-		hErr := &server.HandlerError{
-			StatusCode: 200,
-		}
-
 		switch req.RequestLine.RequestTarget {
 		case "/yourproblem":
-			hErr.StatusCode = 400
-			hErr.Msg = "Your problem is not my problem\n"
+			return &server.HandlerError{
+				StatusCode: 400,
+				Msg:        "Your problem is not my problem\n",
+			}
 		case "/myproblem":
-			hErr.StatusCode = 500
-			hErr.Msg = "Woopsie, my bad\n"
-		default:
-			hErr.Msg = "All good, frfr\n"
+			return &server.HandlerError{
+				StatusCode: 500,
+				Msg:        "Woopsie, my bad\n",
+			}
 		}
 
-		return hErr
+		return nil
 	})
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)

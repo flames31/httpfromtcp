@@ -58,17 +58,24 @@ func (s *Server) handle(conn net.Conn) {
 	}
 	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		fmt.Println(err)
+		hErr := &HandlerError{
+			StatusCode: response.StatusBadRequest,
+			Msg:        err.Error(),
+		}
+		hErr.Write(conn)
 		return
 	}
 
-	buf := bytes.Buffer{}
-	hErr := s.handler(&buf, req)
-	hErr.Write(&buf)
+	buf := bytes.NewBuffer([]byte{})
+	hErr := s.handler(buf, req)
+	if hErr != nil {
+		hErr.Write(conn)
+		return
+	}
 
-	defHeaders := response.GetDefaultHeaders(buf.Len())
-	response.WriteStatusLine(conn, response.StatusCode(hErr.StatusCode))
-	response.WriteHeaders(conn, defHeaders)
+	headers := response.GetDefaultHeaders(buf.Len())
+	response.WriteStatusLine(conn, response.StatusOK)
+	response.WriteHeaders(conn, headers)
 	conn.Write(buf.Bytes())
 	conn.Close()
 }
