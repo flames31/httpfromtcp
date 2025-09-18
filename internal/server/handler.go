@@ -8,7 +8,7 @@ import (
 	"github.com/flames31/httpfromtcp/internal/response"
 )
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
 
 type HandlerError struct {
 	StatusCode int
