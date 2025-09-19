@@ -37,3 +37,18 @@ func (w *Writer) WriteBody(p []byte) (int, error) {
 	n, err := w.Writer.Write(p)
 	return n, err
 }
+
+func (w *Writer) WriteChunkedBody(p []byte) (int, error) {
+	w.Writer.Write([]byte(fmt.Sprintf("%x\r\n", len(p))))
+	w.Writer.Write(p)
+	w.Writer.Write([]byte("\r\n"))
+
+	return len(p), nil
+}
+
+func (w *Writer) WriteChunkedBodyDone() (int, error) {
+	w.Writer.Write([]byte(fmt.Sprintf("%x\r\n", 0)))
+	w.Writer.Write([]byte("\r\n"))
+
+	return 0, nil
+}

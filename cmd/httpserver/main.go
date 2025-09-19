@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/flames31/httpfromtcp/internal/request"
@@ -49,13 +51,36 @@ func main() {
 		h := response.GetDefaultHeaders(0)
 		body := req200
 		statusCode := response.StatusOK
-		switch req.RequestLine.RequestTarget {
-		case "/yourproblem":
+		if req.RequestLine.RequestTarget == "/yourproblem" {
 			body = req400
 			statusCode = response.StatusBadRequest
-		case "/myproblem":
+		} else if req.RequestLine.RequestTarget == "/myproblem" {
 			body = req500
 			statusCode = response.StatusInternalSrvErr
+		} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream") {
+			target := req.RequestLine.RequestTarget
+			res, err := http.Get("https://httpbin.org/" + target[len("/httpbin/"):])
+			if err != nil {
+				body = req500
+				statusCode = response.StatusInternalSrvErr
+			} else {
+				h.Delete("content-length")
+				h.Set("transfer-encoding", "chunked")
+				w.WriteHeaders(h)
+
+				buf := make([]byte, 1024)
+				for {
+					_, err := res.Body.Read(buf)
+					if err != nil {
+						break
+					}
+
+					w.WriteChunkedBody(buf)
+				}
+
+				w.WriteChunkedBodyDone()
+				return
+			}
 		}
 
 		h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
