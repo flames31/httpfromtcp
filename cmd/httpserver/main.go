@@ -92,8 +92,19 @@ func main() {
 				w.WriteHeaders(trailers)
 				return
 			}
-		}
+		} else if req.RequestLine.RequestTarget == "/video" {
+			f, err := os.ReadFile("assets/vim.mp4")
+			if err != nil {
+				return
+			}
 
+			h.Replace("Content-Length", fmt.Sprintf("%d", len(f)))
+			h.Replace("Content-Type", "video/mp4")
+			w.WriteStatusLine(statusCode)
+			w.WriteHeaders(h)
+			w.WriteBody(f)
+			return
+		}
 		h.Replace("Content-Length", fmt.Sprintf("%d", len(body)))
 		h.Replace("Content-Type", "text/html")
 		w.WriteStatusLine(statusCode)
