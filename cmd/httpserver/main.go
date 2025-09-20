@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/flames31/httpfromtcp/internal/headers"
 	"github.com/flames31/httpfromtcp/internal/request"
 	"github.com/flames31/httpfromtcp/internal/response"
 	"github.com/flames31/httpfromtcp/internal/server"
@@ -57,7 +59,7 @@ func main() {
 		} else if req.RequestLine.RequestTarget == "/myproblem" {
 			body = req500
 			statusCode = response.StatusInternalSrvErr
-		} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/stream") {
+		} else if strings.HasPrefix(req.RequestLine.RequestTarget, "/httpbin/") {
 			target := req.RequestLine.RequestTarget
 			res, err := http.Get("https://httpbin.org/" + target[len("/httpbin/"):])
 			if err != nil {
@@ -66,19 +68,28 @@ func main() {
 			} else {
 				h.Delete("content-length")
 				h.Set("transfer-encoding", "chunked")
+				h.Set("trailer", "X-Content-SHA256")
+				h.Set("trailer", "X-Content-Length")
 				w.WriteHeaders(h)
 
+				fullBody := make([]byte, 0)
 				buf := make([]byte, 1024)
 				for {
-					_, err := res.Body.Read(buf)
+					n, err := res.Body.Read(buf)
 					if err != nil {
 						break
 					}
 
+					fullBody = append(fullBody, buf[:n]...)
 					w.WriteChunkedBody(buf)
 				}
 
 				w.WriteChunkedBodyDone()
+				hash := sha256.Sum256(fullBody)
+				trailers := headers.NewHeaders()
+				trailers.Set("X-Content-SHA256", fmt.Sprintf("%x", hash))
+				trailers.Set("X-Content-Length", fmt.Sprint(len(fullBody)))
+				w.WriteHeaders(trailers)
 				return
 			}
 		}
